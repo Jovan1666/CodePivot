@@ -137,7 +137,7 @@
             <div class="flex gap-1 mr-2"><span class="lego-stud-xs" style="background:#FFD700"></span><span class="lego-stud-xs" style="background:#FFD700"></span></div>
             Codex 专属配置
           </div>
-          <div class="grid grid-cols-2 gap-3">
+          <div class="grid grid-cols-3 gap-3">
             <div><label class="lego-label-sm">供应商名称</label><input id="cfg-provider-name" type="text" class="lego-input w-full" placeholder="custom" value="custom"></div>
             <div>
               <label class="lego-label-sm">Reasoning Effort</label>
@@ -145,6 +145,13 @@
                 <option value="high" selected>high</option>
                 <option value="medium">medium</option>
                 <option value="low">low</option>
+              </select>
+            </div>
+            <div>
+              <label class="lego-label-sm">Wire API</label>
+              <select id="cfg-wire-api" class="lego-input w-full">
+                <option value="responses" selected>responses</option>
+                <option value="chat_completions">chat_completions</option>
               </select>
             </div>
           </div>
