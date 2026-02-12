@@ -7,7 +7,7 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 
-from clients import ALL_CLIENTS
+from clients import ALL_CLIENTS, _atomic_write_json
 
 
 def _get_app_dir() -> Path:
@@ -102,7 +102,7 @@ def _backup_corrupt_config() -> None:
 
 
 def _save(data: dict) -> None:
-    CONFIG_PATH.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+    _atomic_write_json(CONFIG_PATH, data)
 
 
 def _migrate_from_profiles(old_data: dict) -> dict:

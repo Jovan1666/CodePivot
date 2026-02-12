@@ -26,10 +26,8 @@ def _atomic_write_text(path: Path, content: str) -> None:
             f.write(content)
             f.flush()
             os.fsync(f.fileno())
-        # Windows 上 rename 目标存在会失败，需先删除
-        if os.name == "nt" and path.exists():
-            path.unlink()
-        os.rename(tmp_path, str(path))
+        # os.replace 在所有平台上都能原子替换已存在的目标文件
+        os.replace(tmp_path, str(path))
     except Exception:
         # 清理临时文件
         try:
@@ -262,7 +260,7 @@ class CodexClient(ClientBase):
         except Exception:
             # config.toml 写入失败，回滚 auth.json
             if old_auth_bytes is not None:
-                self._auth_path.write_bytes(old_auth_bytes)
+                _atomic_write_text(self._auth_path, old_auth_bytes.decode("utf-8"))
             elif self._auth_path.exists():
                 self._auth_path.unlink()
             raise
