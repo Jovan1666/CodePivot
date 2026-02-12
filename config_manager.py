@@ -282,7 +282,6 @@ def _build_client_data(vendor: str, client_key: str, config: dict) -> dict:
             "model": model,
             "provider_name": config.get("provider_name", "custom"),
             "reasoning_effort": config.get("reasoning_effort", "high"),
-            "wire_api": config.get("wire_api", "responses"),
         }
 
     if client_key == "gemini":

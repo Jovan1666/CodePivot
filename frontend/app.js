@@ -221,7 +221,6 @@ function populateEditor(vendor, cfg) {
   if (vendor === 'codex') {
     $('#cfg-provider-name').value = cfg.provider_name || 'custom';
     $('#cfg-reasoning-effort').value = cfg.reasoning_effort || 'high';
-    $('#cfg-wire-api').value = cfg.wire_api || 'responses';
   }
   if (vendor === 'opencode') {
     $('#cfg-provider-id').value = cfg.provider_id || '';
@@ -242,7 +241,6 @@ function resetEditor(vendor) {
   if (vendor === 'codex') {
     $('#cfg-provider-name').value = 'custom';
     $('#cfg-reasoning-effort').value = 'high';
-    $('#cfg-wire-api').value = 'responses';
   }
   if (vendor === 'opencode') {
     $('#cfg-provider-id').value = '';
@@ -272,7 +270,6 @@ function collectFormData() {
   if (vendor === 'codex') {
     data.provider_name = $('#cfg-provider-name').value.trim() || 'custom';
     data.reasoning_effort = $('#cfg-reasoning-effort').value;
-    data.wire_api = $('#cfg-wire-api').value;
   }
   if (vendor === 'opencode') {
     data.provider_id = $('#cfg-provider-id').value.trim();

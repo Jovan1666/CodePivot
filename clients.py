@@ -252,7 +252,7 @@ class CodexClient(ClientBase):
             sec_name = f"model_providers.{provider_name}"
             sec = sections.setdefault(sec_name, {})
             sec["name"] = f'"{provider_name}"'
-            sec["wire_api"] = f'"{profile_data.get("wire_api", "responses")}"'
+            sec["wire_api"] = '"responses"'
             sec["requires_openai_auth"] = "true"
             sec["base_url"] = f'"{base_url}"'
 
