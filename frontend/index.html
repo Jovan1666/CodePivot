@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CodePivot</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <script src="tailwind.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            lego: {
+              bg: '#F0F1F3', surface: '#FFFFFF', border: '#D1D5DB',
+              red: '#E3000B', blue: '#0055BF', yellow: '#FFD700',
+              green: '#00852B', orange: '#FF7E14', text: '#1F2937', muted: '#6B7280',
+            }
+          },
+          fontFamily: { rubik: ['Rubik', 'sans-serif'], mono: ['JetBrains Mono', 'monospace'] }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-lego-bg text-lego-text font-rubik overflow-hidden select-none">
+
+  <!-- ═══ 顶部栏 ═══ -->
+  <header class="lego-header">
+    <div class="flex items-center gap-3">
+      <div class="flex gap-1.5">
+        <span class="lego-stud bg-lego-red"></span>
+        <span class="lego-stud bg-lego-blue"></span>
+        <span class="lego-stud bg-lego-yellow"></span>
+        <span class="lego-stud bg-lego-green"></span>
+      </div>
+      <h1 class="text-lg font-bold tracking-wide">CodePivot</h1>
+    </div>
+    <div class="flex items-center gap-2">
+      <span class="lego-stud-sm" id="status-dot"></span>
+      <span id="status-text" class="font-mono text-xs">就绪</span>
+    </div>
+  </header>
+
+  <!-- ═══ 主体 ═══ -->
+  <div class="lego-body">
+
+    <!-- ── 左侧：厂家列表 ── -->
+    <aside class="lego-sidebar" style="width:180px;min-width:180px">
+      <div class="sidebar-header">
+        <span class="sidebar-title">厂家</span>
+      </div>
+      <div id="vendor-list" class="vendor-list"></div>
+    </aside>
+
+    <!-- ── 右侧：编辑区 ── -->
+    <section class="lego-editor">
+
+      <!-- 模型配置列表 -->
+      <div id="config-list-area" class="config-list-area hidden">
+        <div class="config-list-header">
+          <span id="config-list-title" class="config-list-title">Claude 模型配置</span>
+          <button id="btn-add-config" class="lego-btn lego-btn-blue lego-btn-sm">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            添加配置
+          </button>
+        </div>
+        <div id="config-cards" class="config-cards"></div>
+        <div id="model-hint" class="text-xs text-lego-muted font-mono leading-relaxed px-1 mt-1" style="opacity:0.65"></div>
+      </div>
+
+      <!-- 空状态 -->
+      <div id="editor-empty" class="editor-empty">
+        <div class="flex gap-2 mb-3">
+          <span class="lego-stud-lg bg-lego-red opacity-30"></span>
+          <span class="lego-stud-lg bg-lego-blue opacity-30"></span>
+          <span class="lego-stud-lg bg-lego-yellow opacity-30"></span>
+          <span class="lego-stud-lg bg-lego-green opacity-30"></span>
+        </div>
+        <p class="text-base font-medium">选择左侧厂家查看模型配置</p>
+      </div>
+
+      <div id="editor-form" class="editor-form hidden">
+
+        <div class="editor-topbar">
+          <input id="config-name" type="text" class="lego-input text-base font-bold flex-1" placeholder="配置名称（如 Opus）">
+          <div class="flex gap-2">
+            <button id="btn-switch" class="lego-btn lego-btn-green lego-btn-sm hidden">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+              切换使用
+            </button>
+            <button id="btn-save" class="lego-btn lego-btn-blue lego-btn-sm">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+              保存
+            </button>
+            <button id="btn-delete" class="lego-btn lego-btn-ghost lego-btn-sm hidden" style="color:#E3000B">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+              删除
+            </button>
+          </div>
+        </div>
+
+        <!-- 连接配置 -->
+        <div class="lego-section mt-4">
+          <div class="lego-section-title">
+            <div class="flex gap-1 mr-2"><span class="lego-stud-xs bg-lego-yellow"></span><span class="lego-stud-xs bg-lego-yellow"></span></div>
+            连接配置
+          </div>
+          <div class="grid grid-cols-3 gap-3">
+            <div>
+              <label class="lego-label-sm">API 地址</label>
+              <input id="cfg-api-url" type="text" class="lego-input w-full" placeholder="https://api.example.com">
+            </div>
+            <div>
+              <label class="lego-label-sm">API 密钥</label>
+              <div class="flex gap-1">
+                <input id="cfg-api-key" type="password" class="lego-input flex-1" placeholder="sk-xxx">
+                <button class="lego-btn-icon key-toggle" data-target="cfg-api-key" title="显示/隐藏">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+              </div>
+            </div>
+            <div>
+              <label class="lego-label-sm">模型</label>
+              <input id="cfg-model" type="text" class="lego-input w-full" placeholder="模型名称">
+            </div>
+          </div>
+        </div>
+
+        <!-- Codex 额外 -->
+        <div id="extra-codex" class="lego-section mt-3 hidden">
+          <div class="lego-section-title">
+            <div class="flex gap-1 mr-2"><span class="lego-stud-xs" style="background:#FFD700"></span><span class="lego-stud-xs" style="background:#FFD700"></span></div>
+            Codex 专属配置
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div><label class="lego-label-sm">供应商名称</label><input id="cfg-provider-name" type="text" class="lego-input w-full" placeholder="custom" value="custom"></div>
+            <div>
+              <label class="lego-label-sm">Reasoning Effort</label>
+              <select id="cfg-reasoning-effort" class="lego-input w-full">
+                <option value="high" selected>high</option>
+                <option value="medium">medium</option>
+                <option value="low">low</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- OpenCode 额外 -->
+        <div id="extra-opencode" class="lego-section mt-3 hidden">
+          <div class="lego-section-title">
+            <div class="flex gap-1 mr-2"><span class="lego-stud-xs bg-lego-green"></span><span class="lego-stud-xs bg-lego-green"></span></div>
+            OpenCode 专属配置
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div><label class="lego-label-sm">Provider ID</label><input id="cfg-provider-id" type="text" class="lego-input w-full" placeholder="anthropic"></div>
+            <div><label class="lego-label-sm">npm 包名</label><input id="cfg-npm" type="text" class="lego-input w-full" placeholder="可选"></div>
+          </div>
+          <div class="grid grid-cols-2 gap-3 mt-3">
+            <div><label class="lego-label-sm">显示名称</label><input id="cfg-display-name" type="text" class="lego-input w-full" placeholder="Anthropic (中转)"></div>
+            <div><label class="lego-label-sm">模型显示名称</label><input id="cfg-model-name" type="text" class="lego-input w-full" placeholder="Claude Opus 4.6"></div>
+          </div>
+          <div class="grid grid-cols-2 gap-3 mt-3">
+            <div><label class="lego-label-sm">Context Limit</label><input id="cfg-context-limit" type="number" class="lego-input w-full" value="200000"></div>
+            <div><label class="lego-label-sm">Output Limit</label><input id="cfg-output-limit" type="number" class="lego-input w-full" value="64000"></div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+  </div>
+
+  <!-- 删除确认 -->
+  <div id="confirm-overlay" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center">
+    <div class="lego-confirm">
+      <div class="flex gap-1 mb-3"><span class="lego-stud-sm bg-lego-red"></span><span class="lego-stud-sm bg-lego-red"></span><span class="lego-stud-sm bg-lego-red"></span></div>
+      <p class="font-bold text-base mb-1">确认删除</p>
+      <p id="confirm-text" class="text-sm text-lego-muted mb-4"></p>
+      <div class="flex justify-end gap-2">
+        <button id="confirm-cancel" class="lego-btn lego-btn-ghost text-sm">取消</button>
+        <button id="confirm-ok" class="lego-btn lego-btn-red text-sm">删除</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

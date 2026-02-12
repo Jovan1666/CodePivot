@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#6366f1"/>
+      <stop offset="100%" style="stop-color:#8b5cf6"/>
+    </linearGradient>
+  </defs>
+  <!-- 圆角背景 -->
+  <rect width="256" height="256" rx="48" fill="url(#bg)"/>
+  <!-- 旋转箭头（切换符号） -->
+  <g transform="translate(128,128)" stroke="#fff" stroke-width="14" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <!-- 上半圆弧箭头 -->
+    <path d="M 50,-10 A 55,55 0 1,0 -10,-50" />
+    <polyline points="-10,-50 -10,-80 -40,-50" />
+    <!-- 下半圆弧箭头 -->
+    <path d="M -50,10 A 55,55 0 1,0 10,50" />
+    <polyline points="10,50 10,80 40,50" />
+  </g>
+</svg>

@@ -1,0 +1,21 @@
+# === 个人敏感数据（含 API Key） ===
+config.json
+config.corrupt.*.json
+
+# === 构建产物 ===
+build/
+dist/
+installer_output/
+__pycache__/
+*.pyc
+*.pyo
+
+# === 参考项目（不属于本项目） ===
+cc-switch-main/
+
+# === 个人文档 ===
+方案文档.md
+
+# === 系统文件 ===
+.DS_Store
+Thumbs.db
