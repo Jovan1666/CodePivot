@@ -2,7 +2,7 @@
 ; 使用方法: 先运行 build.bat 打包，再用 Inno Setup 编译此脚本
 
 #define MyAppName "CodePivot"
-#define MyAppVersion "1.0.0"
+#define MyAppVersion "1.2.0"
 #define MyAppPublisher "CodePivot"
 #define MyAppExeName "AI模型切换器.exe"
 #define MyAppDescription "AI 编程工具模型一键切换器"
