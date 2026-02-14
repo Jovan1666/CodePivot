@@ -41,6 +41,10 @@
       <h1 class="text-lg font-bold tracking-wide">CodePivot</h1>
     </div>
     <div class="flex items-center gap-2">
+      <button id="btn-help" class="lego-btn lego-btn-ghost lego-btn-sm" title="查看使用帮助">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        帮助
+      </button>
       <span class="lego-stud-sm" id="status-dot"></span>
       <span id="status-text" class="font-mono text-xs">就绪</span>
     </div>
@@ -59,6 +63,24 @@
 
     <!-- ── 右侧：编辑区 ── -->
     <section class="lego-editor">
+
+      <!-- 操作步骤提示条 -->
+      <div id="step-guide" class="step-guide hidden">
+        <div class="step-item" data-step="1">
+          <span class="step-number">1</span>
+          <span class="step-text">选择厂家</span>
+        </div>
+        <div class="step-arrow">→</div>
+        <div class="step-item" data-step="2">
+          <span class="step-number">2</span>
+          <span class="step-text">添加/选择配置</span>
+        </div>
+        <div class="step-arrow">→</div>
+        <div class="step-item" data-step="3">
+          <span class="step-number">3</span>
+          <span class="step-text">点击切换使用</span>
+        </div>
+      </div>
 
       <!-- 模型配置列表 -->
       <div id="config-list-area" class="config-list-area hidden">
@@ -89,6 +111,10 @@
         <div class="editor-topbar">
           <input id="config-name" type="text" class="lego-input text-base font-bold flex-1" placeholder="配置名称（如 Opus）">
           <div class="flex gap-2">
+            <button id="btn-deploy-env" class="lego-btn lego-btn-orange lego-btn-sm" title="部署到系统环境变量（解决新电脑配置不生效问题）">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+              部署环境变量
+            </button>
             <button id="btn-switch" class="lego-btn lego-btn-green lego-btn-sm hidden">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
               切换使用
@@ -101,6 +127,22 @@
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
               删除
             </button>
+          </div>
+        </div>
+
+        <!-- 按钮功能说明 -->
+        <div id="button-hints" class="button-hints">
+          <div class="hint-item">
+            <span class="hint-dot bg-lego-blue"></span>
+            <span class="hint-text"><strong>保存</strong>：保存配置到数据库</span>
+          </div>
+          <div class="hint-item">
+            <span class="hint-dot bg-lego-green"></span>
+            <span class="hint-text"><strong>切换使用</strong>：应用配置（修改配置文件+环境变量）</span>
+          </div>
+          <div class="hint-item">
+            <span class="hint-dot bg-lego-orange"></span>
+            <span class="hint-text"><strong>部署环境变量</strong>：强制设置系统环境变量（配置不生效时使用）</span>
           </div>
         </div>
 
@@ -183,6 +225,77 @@
       <div class="flex justify-end gap-2">
         <button id="confirm-cancel" class="lego-btn lego-btn-ghost text-sm">取消</button>
         <button id="confirm-ok" class="lego-btn lego-btn-red text-sm">删除</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 版本警告提示 -->
+  <div id="version-overlay" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[70] flex items-center justify-center">
+    <div class="lego-confirm" style="max-width:480px;max-height:80vh;overflow-y:auto;">
+      <div class="flex gap-1 mb-3"><span class="lego-stud-sm bg-lego-yellow"></span><span class="lego-stud-sm bg-lego-yellow"></span><span class="lego-stud-sm bg-lego-orange"></span></div>
+      <p class="font-bold text-base mb-2">📦 版本兼容性提醒</p>
+      <div id="version-warnings" class="text-sm text-lego-text mb-4 space-y-2 max-h-[50vh] overflow-y-auto pr-2"></div>
+      <p class="text-xs text-lego-muted mb-4">💡 提示：使用旧版本可能导致配置不生效，建议升级到推荐版本。</p>
+      <div class="flex justify-end gap-2">
+        <button id="version-ok" class="lego-btn lego-btn-blue text-sm">我知道了</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 首次使用引导 -->
+  <div id="guide-overlay" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[80] flex items-center justify-center">
+    <div class="lego-confirm" style="max-width:560px;max-height:85vh;overflow-y:auto;">
+      <div class="flex gap-1 mb-3"><span class="lego-stud-sm bg-lego-blue"></span><span class="lego-stud-sm bg-lego-green"></span><span class="lego-stud-sm bg-lego-yellow"></span></div>
+      <p class="font-bold text-lg mb-3">🎉 欢迎使用 CodePivot</p>
+      <p class="text-sm text-lego-muted mb-4">一键切换 AI 编程工具配置，支持 Claude、Codex、Gemini、OpenCode</p>
+      
+      <div class="space-y-3 mb-4">
+        <div class="flex items-start gap-3 bg-lego-bg rounded-lg p-3">
+          <div class="flex-shrink-0 w-6 h-6 rounded-full bg-lego-blue text-white flex items-center justify-center text-sm font-bold">1</div>
+          <div>
+            <p class="font-semibold text-sm">选择左侧厂家</p>
+            <p class="text-xs text-lego-muted">点击 Claude、Codex、Gemini 或 OpenCode</p>
+          </div>
+        </div>
+        <div class="flex items-start gap-3 bg-lego-bg rounded-lg p-3">
+          <div class="flex-shrink-0 w-6 h-6 rounded-full bg-lego-green text-white flex items-center justify-center text-sm font-bold">2</div>
+          <div>
+            <p class="font-semibold text-sm">添加配置</p>
+            <p class="text-xs text-lego-muted">点击「添加配置」，填写 API 地址、密钥和模型名称</p>
+          </div>
+        </div>
+        <div class="flex items-start gap-3 bg-lego-bg rounded-lg p-3">
+          <div class="flex-shrink-0 w-6 h-6 rounded-full bg-lego-yellow text-white flex items-center justify-center text-sm font-bold">3</div>
+          <div>
+            <p class="font-semibold text-sm">切换使用</p>
+            <p class="text-xs text-lego-muted">选中配置后点击「切换使用」按钮，自动写入配置文件和环境变量</p>
+          </div>
+        </div>
+        <div class="flex items-start gap-3 bg-lego-bg rounded-lg p-3">
+          <div class="flex-shrink-0 w-6 h-6 rounded-full bg-lego-orange text-white flex items-center justify-center text-sm font-bold">💡</div>
+          <div>
+            <p class="font-semibold text-sm">配置不生效？</p>
+            <p class="text-xs text-lego-muted">点击「部署环境变量」按钮，强制设置系统环境变量（适用于 CLI 工具读取不到配置的情况）</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="border-t border-lego-border pt-3 mb-4">
+        <p class="text-xs text-lego-muted mb-2">🎯 快速操作指南：</p>
+        <div class="grid grid-cols-2 gap-2 text-xs">
+          <div class="flex items-center gap-1"><span class="lego-btn-blue px-2 py-0.5 rounded text-white text-[10px]">保存</span> 保存当前配置</div>
+          <div class="flex items-center gap-1"><span class="lego-btn-green px-2 py-0.5 rounded text-white text-[10px]">切换使用</span> 应用配置到工具</div>
+          <div class="flex items-center gap-1"><span class="lego-btn-orange px-2 py-0.5 rounded text-white text-[10px]">部署环境变量</span> 设置系统环境变量</div>
+          <div class="flex items-center gap-1"><span class="text-lego-red">删除</span> 删除当前配置</div>
+        </div>
+      </div>
+
+      <div class="flex justify-between items-center">
+        <label class="flex items-center gap-2 text-xs text-lego-muted cursor-pointer">
+          <input type="checkbox" id="guide-no-show" class="rounded border-lego-border">
+          <span>不再显示</span>
+        </label>
+        <button id="guide-ok" class="lego-btn lego-btn-blue text-sm">开始使用</button>
       </div>
     </div>
   </div>

@@ -153,6 +153,64 @@ body {
   gap: 12px;
 }
 
+/* ═══ 步骤提示条 ═══ */
+.step-guide {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: linear-gradient(135deg, var(--lego-surface) 0%, var(--lego-bg) 100%);
+  border-bottom: 2px solid var(--lego-border);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.step-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  background: var(--lego-bg);
+  border: 2px solid var(--lego-border);
+  transition: all 0.2s ease;
+}
+
+.step-item.active {
+  background: var(--lego-blue);
+  border-color: var(--lego-blue);
+  color: white;
+  box-shadow: 0 2px 4px rgba(0,85,191,0.3);
+}
+
+.step-item.completed {
+  background: var(--lego-green);
+  border-color: var(--lego-green);
+  color: white;
+}
+
+.step-number {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.3);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.step-text {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.step-arrow {
+  color: var(--lego-muted);
+  font-size: 14px;
+  font-weight: 700;
+}
+
 /* ═══ 底部状态栏 ═══ */
 .lego-statusbar {
   padding: 6px 20px;
@@ -481,4 +539,194 @@ select.lego-input { cursor: pointer; }
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* ═══ 步骤提示条 ═══ */
+.step-guide {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  background: var(--lego-surface);
+  border-bottom: 2px solid var(--lego-border);
+  box-shadow: 0 2px 0 rgba(0,0,0,0.1);
+}
+
+.step-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.step-item.active {
+  background: rgba(0,85,191,0.1);
+  border: 2px solid var(--lego-blue);
+}
+
+.step-item.completed {
+  background: rgba(0,133,43,0.1);
+  border: 2px solid var(--lego-green);
+}
+
+.step-number {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--lego-border);
+  color: white;
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.step-item.active .step-number {
+  background: var(--lego-blue);
+  box-shadow: 0 2px 0 rgba(0,85,191,0.3);
+}
+
+.step-item.completed .step-number {
+  background: var(--lego-green);
+  box-shadow: 0 2px 0 rgba(0,133,43,0.3);
+}
+
+.step-text {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--lego-muted);
+}
+
+.step-item.active .step-text {
+  color: var(--lego-blue);
+}
+
+.step-item.completed .step-text {
+  color: var(--lego-green);
+}
+
+.step-arrow {
+  color: var(--lego-border);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+/* ═══ 引导弹窗样式 ═══ */
+#guide-overlay .lego-confirm {
+  border-color: var(--lego-blue);
+  box-shadow:
+    0 6px 0 rgba(0,85,191,0.3),
+    0 20px 60px rgba(0,0,0,0.5);
+}
+
+#version-overlay .lego-confirm {
+  border-color: var(--lego-yellow);
+  box-shadow:
+    0 6px 0 rgba(255,215,0,0.3),
+    0 20px 60px rgba(0,0,0,0.5);
+}
+
+/* ═══ Tooltip 提示 ═══ */
+.lego-tooltip {
+  position: relative;
+}
+
+.lego-tooltip::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%) translateY(-6px);
+  padding: 6px 10px;
+  background: var(--lego-text);
+  color: white;
+  font-size: 11px;
+  font-weight: 500;
+  border-radius: 6px;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.2s;
+  z-index: 100;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+.lego-tooltip::before {
+  content: '';
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%) translateY(-2px);
+  border: 4px solid transparent;
+  border-top-color: var(--lego-text);
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.2s;
+}
+
+.lego-tooltip:hover::after,
+.lego-tooltip:hover::before {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* ═══ 提示徽章 ═══ */
+.hint-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  background: rgba(255,126,20,0.15);
+  border: 1px solid var(--lego-orange);
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--lego-orange);
+}
+
+/* ═══ 动画效果 ═══ */
+@keyframes modalIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* ═══ 按钮功能提示 ═══ */
+.button-hints {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 10px 12px;
+  background: #FAFBFC;
+  border: 1px dashed var(--lego-border);
+  border-radius: 8px;
+  margin-top: 10px;
+}
+
+.hint-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--lego-muted);
+}
+
+.hint-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.hint-text strong {
+  color: var(--lego-text);
+  font-weight: 600;
 }

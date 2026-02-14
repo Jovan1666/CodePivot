@@ -34,6 +34,22 @@ const api = {
     if (window.pywebview) return await window.pywebview.api.switch_vendor_config(vendor, configId);
     return { success: true, message: '已切换', details: [] };
   },
+  async deployToEnvVars(vendor, configId) {
+    if (window.pywebview) return await window.pywebview.api.deploy_to_env_vars(vendor, configId);
+    return { success: true, message: '环境变量已设置', set_vars: [], failed_vars: [] };
+  },
+  async getEnvVarsStatus(vendor) {
+    if (window.pywebview) return await window.pywebview.api.env_vars_status(vendor);
+    return {};
+  },
+  async checkVendorVersions() {
+    if (window.pywebview) return await window.pywebview.api.check_vendor_versions();
+    return {};
+  },
+  async getMinVersions() {
+    if (window.pywebview) return await window.pywebview.api.get_min_versions();
+    return {};
+  },
 };
 
 // ── DOM ──────────────────────────────────
@@ -57,16 +73,21 @@ const dom = {
   confirmText: $('#confirm-text'),
   extraCodex: $('#extra-codex'),
   extraOpencode: $('#extra-opencode'),
+  stepGuide: $('#step-guide'),
 };
+
+
 
 // ── 渲染左侧厂家列表 ──────────────────
 
 function renderVendorList() {
+  console.log('[renderVendorList] 开始渲染, state.vendors:', state.vendors);
   const list = dom.vendorList;
   list.innerHTML = '';
 
   VENDOR_ORDER.forEach(vk => {
     const vendor = state.vendors[vk];
+    console.log(`[renderVendorList] 检查 vendor ${vk}:`, vendor);
     if (!vendor) return;
 
     const item = document.createElement('div');
@@ -86,6 +107,7 @@ function renderVendorList() {
     `;
     list.appendChild(item);
   });
+  console.log('[renderVendorList] 渲染完成, 列表子元素数:', list.children.length);
 }
 
 // ── 渲染右侧模型卡片 ─────────────────
@@ -160,6 +182,8 @@ function selectVendor(vk) {
   hideEditor();
   renderVendorList();
   renderConfigCards();
+  // 更新步骤提示到第2步
+  stepGuide.setStep(2);
 }
 
 function selectConfig(vendor, configId) {
@@ -175,6 +199,8 @@ function selectConfig(vendor, configId) {
   showEditor(vendor, cfg);
   renderVendorList();
   renderConfigCards();
+  // 更新步骤提示到第3步
+  stepGuide.setStep(3);
 }
 
 function startNewConfig(vendor) {
@@ -186,6 +212,8 @@ function startNewConfig(vendor) {
   showEditor(vendor, null);
   renderVendorList();
   renderConfigCards();
+  // 新建配置时回到第2步
+  stepGuide.setStep(2);
 }
 
 function showEditor(vendor, cfg) {
@@ -293,6 +321,42 @@ function toggleKeyVisibility(targetId) {
 
 // ── 操作 ────────────────────────────────
 
+async function handleDeployEnvVars() {
+  if (!state.selectedVendor || !state.selectedConfigId) {
+    setStatus('请先选择一个配置', 'error');
+    return;
+  }
+
+  // 确认对话框
+  const vendor = state.selectedVendor;
+  const config = state.vendors[vendor]?.configs?.find(c => c.id === state.selectedConfigId);
+  if (!config) return;
+
+  const message = `即将将配置「${config.name}」部署到系统环境变量。\n\n这将设置以下环境变量：\n${vendor === 'claude' ? '• ANTHROPIC_AUTH_TOKEN\n• ANTHROPIC_BASE_URL\n• ANTHROPIC_MODEL' : vendor === 'codex' ? '• OPENAI_API_KEY' : '相关环境变量'}\n\n适用于新电脑首次配置或配置不生效的情况。\n是否继续？`;
+
+  if (!confirm(message)) return;
+
+  try {
+    setStatus('正在部署环境变量...', 'neutral');
+    const result = await api.deployToEnvVars(vendor, state.selectedConfigId);
+
+    if (result.success) {
+      setStatus(result.message || '环境变量已部署，重启终端后生效', 'success');
+      alert('环境变量部署成功！\n\n' +
+        `已设置：${result.set_vars.join(', ')}\n\n` +
+        '提示：请关闭当前终端并重新打开，环境变量才会生效。');
+    } else {
+      setStatus(result.message || '部署失败', 'error');
+      if (result.failed_vars && result.failed_vars.length > 0) {
+        alert('部分环境变量设置失败：\n' + result.failed_vars.join('\n') + '\n\n可能需要管理员权限。');
+      }
+    }
+  } catch (e) {
+    setStatus('部署失败: ' + e.message, 'error');
+    alert('环境变量部署失败：' + e.message + '\n\n提示：\n1. 请以管理员权限运行此应用\n2. 或手动在系统环境变量中设置');
+  }
+}
+
 async function handleSwitch() {
   if (!state.selectedVendor || !state.selectedConfigId) return;
   setStatus('正在切换...', 'neutral');
@@ -385,6 +449,7 @@ async function confirmDelete() {
 function bindEvents() {
   $('#btn-save').addEventListener('click', handleSave);
   $('#btn-switch').addEventListener('click', handleSwitch);
+  $('#btn-deploy-env').addEventListener('click', handleDeployEnvVars);
   $('#btn-delete').addEventListener('click', () => {
     if (state.selectedVendor && state.selectedConfigId) {
       showDeleteConfirm(state.selectedVendor, state.selectedConfigId);
@@ -420,27 +485,170 @@ function bindEvents() {
   dom.confirmOverlay.addEventListener('click', (e) => {
     if (e.target === dom.confirmOverlay) hideDeleteConfirm();
   });
+
+  // 版本警告弹窗
+  $('#version-ok').addEventListener('click', () => {
+    versionOverlay.hide();
+  });
+  document.getElementById('version-overlay').addEventListener('click', (e) => {
+    if (e.target === document.getElementById('version-overlay')) {
+      versionOverlay.hide();
+    }
+  });
+
+  // 帮助按钮
+  $('#btn-help').addEventListener('click', () => {
+    guideOverlay.show();
+  });
+
+  // 引导弹窗
+  $('#guide-ok').addEventListener('click', () => {
+    const noShow = $('#guide-no-show').checked;
+    if (noShow) {
+      localStorage.setItem('codepivot_guide_shown', 'true');
+    }
+    guideOverlay.hide();
+  });
+  document.getElementById('guide-overlay').addEventListener('click', (e) => {
+    if (e.target === document.getElementById('guide-overlay')) {
+      guideOverlay.hide();
+    }
+  });
 }
 
 // ── 初始化 ──────────────────────────────
+
+// 弹窗控制
+const versionOverlay = {
+  el: () => document.getElementById('version-overlay'),
+  warningsEl: () => document.getElementById('version-warnings'),
+  show() { this.el().classList.remove('hidden'); },
+  hide() { this.el().classList.add('hidden'); }
+};
+
+const guideOverlay = {
+  el: () => document.getElementById('guide-overlay'),
+  show() { this.el().classList.remove('hidden'); },
+  hide() { this.el().classList.add('hidden'); }
+};
+
+// 步骤提示控制
+const stepGuide = {
+  el: () => document.getElementById('step-guide'),
+  show() { this.el().classList.remove('hidden'); },
+  hide() { this.el().classList.add('hidden'); },
+  setStep(step) {
+    const items = this.el().querySelectorAll('.step-item');
+    items.forEach((item, idx) => {
+      const num = idx + 1;
+      if (num < step) {
+        item.classList.add('completed');
+        item.classList.remove('active');
+      } else if (num === step) {
+        item.classList.add('active');
+        item.classList.remove('completed');
+      } else {
+        item.classList.remove('active', 'completed');
+      }
+    });
+  }
+};
+
+async function checkAndShowVersionWarnings() {
+  try {
+    const versions = await api.checkVendorVersions();
+    const minVersions = await api.getMinVersions();
+    const warnings = [];
+
+    for (const [vendor, [isCompatible, version, message]] of Object.entries(versions)) {
+      if (!isCompatible && version !== '未安装') {
+        const vendorNames = {
+          'claude': 'Claude Code',
+          'codex': 'Codex CLI',
+          'gemini': 'Gemini CLI',
+          'opencode': 'OpenCode'
+        };
+        warnings.push({
+          name: vendorNames[vendor],
+          version: version,
+          message: message,
+          minVersion: minVersions[vendor] || '最新版'
+        });
+      }
+    }
+
+    if (warnings.length > 0) {
+      setTimeout(() => {
+        const container = versionOverlay.warningsEl();
+        container.innerHTML = '';
+        warnings.forEach(w => {
+          const div = document.createElement('div');
+          div.className = 'bg-lego-bg rounded p-3 border-l-4 border-lego-yellow';
+
+          const title = document.createElement('div');
+          title.className = 'font-semibold text-lego-text mb-1';
+          title.textContent = '⚠️ ' + w.name;
+
+          const msg = document.createElement('div');
+          msg.className = 'text-lego-muted text-xs mb-1';
+          msg.textContent = w.message;
+
+          const ver = document.createElement('div');
+          ver.className = 'text-lego-orange text-xs';
+          ver.textContent = '推荐版本: ' + w.minVersion;
+
+          div.appendChild(title);
+          div.appendChild(msg);
+          div.appendChild(ver);
+          container.appendChild(div);
+        });
+        versionOverlay.show();
+      }, 800);
+    }
+  } catch (e) {
+    console.log('版本检测失败:', e);
+  }
+}
 
 async function init() {
   bindEvents();
   setStatus('正在加载...', 'neutral');
 
+  // 等待 PyWebView 就绪
   if (!window.pywebview) {
     await new Promise((resolve) => {
       window.addEventListener('pywebviewready', resolve);
-      setTimeout(resolve, 2000);
+      setTimeout(resolve, 3000);
     });
+  }
+
+  // 检查 API 是否可用
+  if (!window.pywebview || !window.pywebview.api) {
+    setStatus('API 未就绪', 'error');
+    alert('错误：无法连接到后端 API\n\n请重新启动应用程序。');
+    return;
   }
 
   try {
     state.vendors = await api.getVendors();
+    
+    // 验证数据
+    if (!state.vendors || Object.keys(state.vendors).length === 0) {
+      setStatus('无配置数据', 'error');
+      return;
+    }
+    
     renderVendorList();
     setStatus('就绪', 'success');
+
+    // 显示步骤提示
+    if (dom.stepGuide) {
+      stepGuide.show();
+      stepGuide.setStep(1);
+    }
   } catch (e) {
     setStatus('加载失败: ' + e.message, 'error');
+    alert('加载失败: ' + e.message);
   }
 }
 

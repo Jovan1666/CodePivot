@@ -15,6 +15,7 @@ MAX_BACKUPS = 10
 
 # ── 原子写入工具 ──────────────────────────────
 
+
 def _atomic_write_text(path: Path, content: str) -> None:
     """原子写入文本文件：先写临时文件再 rename，避免写入中断导致文件损坏"""
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -62,7 +63,7 @@ class ClientBase(ABC):
         backed_up = []
         for path in self.config_paths:
             if path.exists():
-                backup_name = f"{self.display_name}_{path.name}_{timestamp}"
+                backup_name = f"{self.display_name}_{path.stem}_{timestamp}{path.suffix}"
                 backup_path = BACKUP_DIR / backup_name
                 shutil.copy2(path, backup_path)
                 backed_up.append(str(backup_path))
@@ -73,7 +74,11 @@ class ClientBase(ABC):
         """保留最近 MAX_BACKUPS 份备份"""
         if not BACKUP_DIR.exists():
             return
-        backups = sorted(BACKUP_DIR.glob(f"{self.display_name}_*"), key=lambda p: p.stat().st_mtime, reverse=True)
+        backups = sorted(
+            BACKUP_DIR.glob(f"{self.display_name}_*"),
+            key=lambda p: p.stat().st_mtime,
+            reverse=True,
+        )
         for old in backups[MAX_BACKUPS:]:
             old.unlink(missing_ok=True)
 
@@ -249,10 +254,10 @@ class CodexClient(ClientBase):
             top.setdefault("disable_response_storage", "true")
 
             # 更新 provider section（保留已有的额外设置）
+            # 注意：Codex CLI 最新版仅支持 responses API，不需要 wire_api 字段
             sec_name = f"model_providers.{provider_name}"
             sec = sections.setdefault(sec_name, {})
             sec["name"] = f'"{provider_name}"'
-            sec["wire_api"] = '"responses"'
             sec["requires_openai_auth"] = "true"
             sec["base_url"] = f'"{base_url}"'
 
@@ -302,7 +307,8 @@ class GeminiClient(ClientBase):
         lines = [f"{k}={v}" for k, v in sorted(env_vars.items())]
         _atomic_write_text(self._env_path, "\n".join(lines) + "\n")
 
-        # 写入 settings.json — 只更新 security.auth.selectedType，保留其他字段
+        # 写入 settings.json — 支持 v2 新格式（2025-09-10后）
+        # v2 格式使用分层结构，旧格式已弃用但.env文件方式仍然有效
         existing = {}
         if self._settings_path.exists():
             try:
@@ -310,9 +316,25 @@ class GeminiClient(ClientBase):
             except (json.JSONDecodeError, UnicodeDecodeError):
                 existing = {}
 
-        security = existing.setdefault("security", {})
-        auth = security.setdefault("auth", {})
-        auth["selectedType"] = "gemini-api-key"
+        # 检测是否为 v2 格式（有 $schema 或 general/ui 等顶级分类）
+        is_v2_format = (
+            existing.get("$schema") or "general" in existing or "ui" in existing
+        )
+
+        if is_v2_format:
+            # v2 新格式：使用分层结构 security.auth
+            security = existing.setdefault("security", {})
+            auth = security.setdefault("auth", {})
+            auth["selectedType"] = "gemini-api-key"
+            # v2 格式额外支持 general.model 字段
+            if profile_data.get("model"):
+                general = existing.setdefault("general", {})
+                general["model"] = profile_data["model"]
+        else:
+            # v1 旧格式或新建
+            security = existing.setdefault("security", {})
+            auth = security.setdefault("auth", {})
+            auth["selectedType"] = "gemini-api-key"
 
         _atomic_write_json(self._settings_path, existing)
 
@@ -353,6 +375,7 @@ class OpenCodeClient(ClientBase):
         new_models = profile_data.get("models", {})
 
         # 获取已有的 provider entry，合并而非替换
+        # 注意：OpenCode v0.3.133+ 要求 models 字段必须存在
         entry = existing["provider"].get(provider_id, {})
 
         # 更新 options
@@ -361,9 +384,17 @@ class OpenCodeClient(ClientBase):
         entry["options"]["baseURL"] = base_url
 
         # 合并 models（更新已有 + 添加新的，不删除其他）
+        # v0.3.133+ 版本要求 models 字段必须存在，不能为空对象
         entry.setdefault("models", {})
         for model_name, model_config in new_models.items():
             entry["models"][model_name] = model_config
+
+        # 确保至少有一个默认模型（如果配置中没有提供）
+        if not entry["models"]:
+            entry["models"]["default"] = {
+                "name": display_name or provider_id,
+                "limit": {"context": 200000, "output": 64000},
+            }
 
         if display_name:
             entry["name"] = display_name

@@ -3,11 +3,15 @@
 import json
 import shutil
 import sys
+import threading
 import uuid
 from datetime import datetime
 from pathlib import Path
 
 from clients import ALL_CLIENTS, _atomic_write_json
+
+# 全局锁，防止并发写入配置文件
+_config_lock = threading.Lock()
 
 
 def _get_app_dir() -> Path:
@@ -68,7 +72,8 @@ DEFAULT_CONFIG = {
 }
 
 
-def _load() -> dict:
+def _load_unlocked() -> dict:
+    """加载配置（内部使用，调用方需持有 _config_lock）"""
     if not CONFIG_PATH.exists():
         return json.loads(json.dumps(DEFAULT_CONFIG))
     try:
@@ -76,7 +81,7 @@ def _load() -> dict:
         # 兼容旧格式：自动迁移
         if "profiles" in data and "vendors" not in data:
             data = _migrate_from_profiles(data)
-            _save(data)
+            _atomic_write_json(CONFIG_PATH, data)
         # 确保三个厂家都存在
         vendors = data.setdefault("vendors", {})
         for vk in VENDOR_CLIENTS:
@@ -87,6 +92,16 @@ def _load() -> dict:
         # 配置文件损坏，备份后回退到默认配置
         _backup_corrupt_config()
         return json.loads(json.dumps(DEFAULT_CONFIG))
+    except Exception as e:
+        # 其他错误，记录后返回默认配置
+        print(f"[错误] 加载配置失败: {e}")
+        return json.loads(json.dumps(DEFAULT_CONFIG))
+
+
+def _load() -> dict:
+    """加载配置（线程安全，仅用于只读场景）"""
+    with _config_lock:
+        return _load_unlocked()
 
 
 def _backup_corrupt_config() -> None:
@@ -101,8 +116,15 @@ def _backup_corrupt_config() -> None:
         pass  # 备份失败不影响主流程
 
 
-def _save(data: dict) -> None:
+def _save_unlocked(data: dict) -> None:
+    """保存配置（内部使用，调用方需持有 _config_lock）"""
     _atomic_write_json(CONFIG_PATH, data)
+
+
+def _save(data: dict) -> None:
+    """保存配置（线程安全，仅用于独立保存场景）"""
+    with _config_lock:
+        _save_unlocked(data)
 
 
 def _migrate_from_profiles(old_data: dict) -> dict:
@@ -145,12 +167,15 @@ def _migrate_from_profiles(old_data: dict) -> dict:
 
 # ── 读取 ──────────────────────────────────────────
 
+
 def get_vendors() -> dict:
     """返回 {vendor_key: {meta, configs, current_config_id}}"""
     data = _load()
     result = {}
     for vk, meta in VENDOR_META.items():
-        vendor_data = data.get("vendors", {}).get(vk, {"configs": [], "current_config_id": None})
+        vendor_data = data.get("vendors", {}).get(
+            vk, {"configs": [], "current_config_id": None}
+        )
         result[vk] = {
             **meta,
             "configs": vendor_data.get("configs", []),
@@ -159,69 +184,94 @@ def get_vendors() -> dict:
     return result
 
 
+def get_current_config(vendor: str) -> dict | None:
+    """获取指定厂商的当前配置"""
+    data = _load()
+    vendor_data = data.get("vendors", {}).get(vendor)
+    if not vendor_data:
+        return None
+    current_id = vendor_data.get("current_config_id")
+    if not current_id:
+        return None
+    configs = vendor_data.get("configs", [])
+    for cfg in configs:
+        if cfg.get("id") == current_id:
+            return cfg
+    return None
+
+
 # ── CRUD ──────────────────────────────────────────
 
+
 def save_vendor_config(vendor: str, config_data: dict) -> dict:
-    """保存/新增某厂家下的一个模型配置"""
+    """保存/新增某厂家下的一个模型配置（原子读写，防止并发丢失）"""
     if vendor not in VENDOR_CLIENTS:
         raise ValueError(f"未知厂家: {vendor}")
 
-    data = _load()
-    vendor_data = data["vendors"].setdefault(vendor, {"configs": [], "current_config_id": None})
-    configs = vendor_data.setdefault("configs", [])
+    with _config_lock:
+        data = _load_unlocked()
+        vendor_data = data["vendors"].setdefault(
+            vendor, {"configs": [], "current_config_id": None}
+        )
+        configs = vendor_data.setdefault("configs", [])
 
-    if config_data.get("id"):
-        for i, c in enumerate(configs):
-            if c["id"] == config_data["id"]:
-                configs[i] = config_data
-                break
+        if config_data.get("id"):
+            for i, c in enumerate(configs):
+                if c["id"] == config_data["id"]:
+                    configs[i] = config_data
+                    break
+            else:
+                configs.append(config_data)
         else:
+            config_data["id"] = str(uuid.uuid4())
             configs.append(config_data)
-    else:
-        config_data["id"] = str(uuid.uuid4())
-        configs.append(config_data)
 
-    _save(data)
+        _save_unlocked(data)
     return config_data
 
 
 def delete_vendor_config(vendor: str, config_id: str) -> bool:
-    """删除某厂家下的一个模型配置"""
-    data = _load()
-    vendor_data = data.get("vendors", {}).get(vendor)
-    if not vendor_data:
-        return False
+    """删除某厂家下的一个模型配置（原子读写，防止并发丢失）"""
+    with _config_lock:
+        data = _load_unlocked()
+        vendor_data = data.get("vendors", {}).get(vendor)
+        if not vendor_data:
+            return False
 
-    configs = vendor_data.get("configs", [])
-    new_configs = [c for c in configs if c["id"] != config_id]
-    if len(new_configs) == len(configs):
-        return False
+        configs = vendor_data.get("configs", [])
+        new_configs = [c for c in configs if c["id"] != config_id]
+        if len(new_configs) == len(configs):
+            return False
 
-    vendor_data["configs"] = new_configs
-    if vendor_data.get("current_config_id") == config_id:
-        vendor_data["current_config_id"] = None
+        vendor_data["configs"] = new_configs
+        if vendor_data.get("current_config_id") == config_id:
+            vendor_data["current_config_id"] = None
 
-    _save(data)
+        _save_unlocked(data)
     return True
 
 
 # ── 切换逻辑 ──────────────────────────────────────
+
 
 def switch_vendor_config(vendor: str, config_id: str) -> dict:
     """切换某厂家到指定配置"""
     if vendor not in VENDOR_CLIENTS:
         return {"success": False, "message": f"未知厂家: {vendor}", "details": []}
 
-    data = _load()
-    vendor_data = data.get("vendors", {}).get(vendor, {})
-    configs = vendor_data.get("configs", [])
-    config = next((c for c in configs if c["id"] == config_id), None)
+    # 原子读取配置
+    with _config_lock:
+        data = _load_unlocked()
+        vendor_data = data.get("vendors", {}).get(vendor, {})
+        configs = vendor_data.get("configs", [])
+        config = next((c for c in configs if c["id"] == config_id), None)
 
-    if not config:
-        return {"success": False, "message": "配置不存在", "details": []}
+        if not config:
+            return {"success": False, "message": "配置不存在", "details": []}
 
     results = []
     errors = []
+    success_count = 0
     backup_before = data.get("settings", {}).get("backup_before_switch", True)
     client_keys = VENDOR_CLIENTS[vendor]
 
@@ -236,21 +286,26 @@ def switch_vendor_config(vendor: str, config_id: str) -> dict:
             try:
                 backed = client.backup()
                 if backed:
-                    results.append(f"[{client.display_name}] 已备份 {len(backed)} 个文件")
+                    results.append(
+                        f"[{client.display_name}] 已备份 {len(backed)} 个文件"
+                    )
             except Exception as e:
                 results.append(f"[{client.display_name}] 备份警告: {e}")
 
         try:
             client.apply(merged)
             results.append(f"[{client.display_name}] ✔ 配置已写入")
+            success_count += 1
         except Exception as e:
             errors.append(f"[{client.display_name}] ✘ 写入失败: {e}")
 
-    # 只要有客户端写入成功就更新 current_config_id（部分成功也算切换）
-    has_success = any("✔" in r for r in results)
+    # 只要有客户端写入成功就更新 current_config_id（原子读写）
+    has_success = success_count > 0
     if has_success:
-        vendor_data["current_config_id"] = config_id
-        _save(data)
+        with _config_lock:
+            data = _load_unlocked()
+            data.get("vendors", {}).get(vendor, {})["current_config_id"] = config_id
+            _save_unlocked(data)
 
     if errors:
         msg = "部分客户端写入失败" if has_success else "所有客户端写入失败"
@@ -316,6 +371,7 @@ def _build_client_data(vendor: str, client_key: str, config: dict) -> dict:
 
 
 # ── 客户端检测 ────────────────────────────────────
+
 
 def detect_clients() -> dict[str, bool]:
     return {key: client.detect() for key, client in ALL_CLIENTS.items()}
